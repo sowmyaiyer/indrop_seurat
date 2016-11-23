@@ -1,0 +1,60 @@
+---
+title: "Seurat indrop"
+output: html_notebook
+---
+
+
+
+```{r}
+library(Seurat)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(biomaRt)
+library(pheatmap)
+library(readr)
+
+
+correct <- function(x) { return(x*1e6/sum(x)) } 
+
+umi_counts_wt1 <- read.table("~/Downloads/Zebrafish-WT1.all.genename.umi_counts", header=TRUE,row.names=1, sep="\t")
+umi_counts_wt2 <- read.table("~/Downloads/Zebrafish-WT2.all.genename.umi_counts", header=TRUE, row.names=1, sep="\t")
+umi_counts_prkdc2 <- read.table("~/Downloads/Zebrafish-PRKDC2.all.genename.umi_counts", header=TRUE, row.names=1, sep="\t")
+umi_counts_mut1_s1 <- read.table("~/Downloads/Zebrafish-Mut1_S1.all.genename.umi_counts", header=TRUE, row.names=1, sep="\t")
+
+
+
+umi_counts_wt1_corrected <- apply(umi_counts_wt1, 2, correct)
+umi_counts_wt2_corrected <- apply(umi_counts_wt2, 2, correct)
+umi_counts_prkdc2_corrected <- apply(umi_counts_prkdc2, 2, correct)
+umi_counts_mut1_s1_corrected <- apply(umi_counts_mut1_s1, 2, correct)
+
+counts_all <- list("wt1"=umi_counts_wt1, "wt2"=umi_counts_wt2, "mut1"=umi_counts_mut1_s1, "prkdc2"=umi_counts_prkdc2)
+corrected_counts_all <- list("wt1"=umi_counts_wt1_corrected, "wt2"=umi_counts_wt2_corrected, "mut1"=umi_counts_mut1_s1_corrected, "prkdc2"=umi_counts_prkdc2_corrected)
+
+
+umi_counts_wt1_ensembl <- read.table("~/Downloads/Zebrafish-WT1.all.ensemblgenename.umi_counts", header=TRUE,row.names=1, sep="\t")
+umi_counts_wt2_ensembl <- read.table("~/Downloads/Zebrafish-WT2.all.ensemblgenename.umi_counts", header=TRUE, row.names=1, sep="\t")
+umi_counts_prkdc2_ensembl <- read.table("~/Downloads/Zebrafish-PRKDC2.all.ensemblgenename.umi_counts", header=TRUE, row.names=1, sep="\t")
+umi_counts_mut1_s1_ensembl <- read.table("~/Downloads/Zebrafish-Mut1_S1.all.ensemblgenename.umi_counts", header=TRUE, row.names=1, sep="\t")
+
+umi_counts_wt1_corrected_ensembl <- apply(umi_counts_wt1_ensembl, 2, correct)
+umi_counts_wt2_corrected_ensembl <- apply(umi_counts_wt2_ensembl, 2, correct)
+umi_counts_prkdc2_corrected_ensembl <- apply(umi_counts_prkdc2_ensembl, 2, correct)
+umi_counts_mut1_s1_corrected_ensembl <- apply(umi_counts_mut1_s1_ensembl, 2, correct)
+
+counts_all_ensembl <- list("wt1"=umi_counts_wt1_ensembl, "wt2"=umi_counts_wt2_ensembl, "mut1"=umi_counts_mut1_s1_ensembl, "prkdc2"=umi_counts_prkdc2_ensembl)
+corrected_counts_all_ensembl <- list("wt1"=umi_counts_wt1_corrected_ensembl, "wt2"=umi_counts_wt2_corrected_ensembl, "mut1"=umi_counts_mut1_s1_corrected_ensembl, "prkdc2"=umi_counts_prkdc2_corrected_ensembl)
+
+
+seurat = new("seurat", raw.data = umi_counts_wt1_ensembl)
+seurat = Setup(seurat, min.cells = 3, min.genes = 200, do.logNormalize = TRUE, total.expr = 10000, project = "combined_seurat")
+
+celldata = data.frame(cell = colnames(umi_counts_wt1_ensembl), tcounts = colSums(umi_counts_wt1_ensembl), detected = colSums(umi_counts_wt1_ensembl >  0))
+
+celldata = celldata %>% tidyr::separate(cell, c("barcode", "sample"), sep = ":", remove = FALSE)
+
+seuratdi = seurat@data.info %>% tibble::rownames_to_column(var = "cell") %>% left_join(celldata, by = "cell") %>% data.frame()
+
+```
+
